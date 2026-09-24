@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
 _pool: ConnectionPool | None = None
+_app_role_ready = False
 
 
 def _db_hint() -> str:
@@ -198,7 +199,10 @@ APP_ROLE = "hr_app"
 
 def _ensure_app_role(conn: psycopg.Connection) -> None:
     """Non-owner role without BYPASSRLS so FORCE RLS can bind retrieval queries."""
+    global _app_role_ready
+    _app_role_ready = False
     try:
+        conn.execute("SAVEPOINT ensure_hr_app")
         conn.execute(
             f"""
             DO $$
@@ -215,7 +219,13 @@ def _ensure_app_role(conn: psycopg.Connection) -> None:
             f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {APP_ROLE}"
         )
         conn.execute(f"GRANT {APP_ROLE} TO CURRENT_USER")
+        conn.execute("RELEASE SAVEPOINT ensure_hr_app")
+        _app_role_ready = True
     except Exception:
+        try:
+            conn.execute("ROLLBACK TO SAVEPOINT ensure_hr_app")
+        except Exception:
+            pass
         logger.warning(
             "Could not create role %s; tenant isolation relies on SQL company_id filters",
             APP_ROLE,
@@ -242,10 +252,17 @@ def _warn_if_rls_bypassed(conn: psycopg.Connection) -> None:
 
 def _apply_tenant_scope(conn, company_id: str) -> None:
     _set_company_id(conn, company_id)
+    if not _app_role_ready:
+        return
     try:
+        conn.execute("SAVEPOINT set_hr_app_role")
         conn.execute(f"SET LOCAL ROLE {APP_ROLE}")
+        conn.execute("RELEASE SAVEPOINT set_hr_app_role")
     except Exception:
-        pass
+        try:
+            conn.execute("ROLLBACK TO SAVEPOINT set_hr_app_role")
+        except Exception:
+            pass
 
 
 def _set_company_id(conn, company_id: str) -> None:

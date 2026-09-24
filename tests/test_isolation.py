@@ -156,6 +156,8 @@ def test_tenant_connection_sets_local_company_id(monkeypatch):
 def test_tenant_connection_sets_non_bypass_role(monkeypatch):
     from contextlib import contextmanager
 
+    import app.db as dbmod
+
     captured: list[str] = []
 
     class FakeConn:
@@ -171,12 +173,70 @@ def test_tenant_connection_sets_non_bypass_role(monkeypatch):
         yield FakeConn()
 
     monkeypatch.setattr("app.db.connection", fake_connection)
-    from app.db import tenant_connection
+    monkeypatch.setattr(dbmod, "_app_role_ready", True)
 
-    with tenant_connection("company-a") as conn:
+    with dbmod.tenant_connection("company-a") as conn:
         conn.execute("SELECT 1")
 
     assert any("SET LOCAL ROLE hr_app" in sql for sql in captured)
+    assert any("set_config('app.company_id'" in sql for sql in captured)
+
+
+def test_failed_set_role_does_not_abort_later_queries(monkeypatch):
+    from contextlib import contextmanager
+
+    import app.db as dbmod
+
+    captured: list[str] = []
+
+    class FakeConn:
+        def execute(self, sql, params=None):
+            text = str(sql)
+            captured.append(text)
+            if "SET LOCAL ROLE" in text:
+                raise RuntimeError("role \"hr_app\" does not exist")
+            return self
+
+        def commit(self):
+            captured.append("COMMIT")
+
+    @contextmanager
+    def fake_connection():
+        yield FakeConn()
+
+    monkeypatch.setattr("app.db.connection", fake_connection)
+    monkeypatch.setattr(dbmod, "_app_role_ready", True)
+
+    with dbmod.tenant_connection("company-a") as conn:
+        conn.execute("SELECT * FROM documents")
+
+    assert any("ROLLBACK TO SAVEPOINT set_hr_app_role" in sql for sql in captured)
+    assert any("SELECT * FROM documents" in sql for sql in captured)
+
+
+def test_tenant_connection_skips_set_role_when_role_unavailable(monkeypatch):
+    from contextlib import contextmanager
+
+    import app.db as dbmod
+
+    captured: list[str] = []
+
+    class FakeConn:
+        def execute(self, sql, params=None):
+            captured.append(str(sql))
+            return self
+
+    @contextmanager
+    def fake_connection():
+        yield FakeConn()
+
+    monkeypatch.setattr("app.db.connection", fake_connection)
+    monkeypatch.setattr(dbmod, "_app_role_ready", False)
+
+    with dbmod.tenant_connection("company-a") as conn:
+        conn.execute("SELECT 1")
+
+    assert not any("SET LOCAL ROLE" in sql for sql in captured)
     assert any("set_config('app.company_id'" in sql for sql in captured)
 
 
