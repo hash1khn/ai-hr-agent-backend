@@ -151,3 +151,49 @@ def test_tenant_connection_sets_local_company_id(monkeypatch):
     guc_calls = [item for item in captured if "set_config('app.company_id'" in str(item[0])]
     assert len(guc_calls) >= 2
     assert guc_calls[0][1] == ("company-a",)
+
+
+def test_tenant_connection_sets_non_bypass_role(monkeypatch):
+    from contextlib import contextmanager
+
+    captured: list[str] = []
+
+    class FakeConn:
+        def execute(self, sql, params=None):
+            captured.append(str(sql))
+            return self
+
+        def commit(self):
+            captured.append("COMMIT")
+
+    @contextmanager
+    def fake_connection():
+        yield FakeConn()
+
+    monkeypatch.setattr("app.db.connection", fake_connection)
+    from app.db import tenant_connection
+
+    with tenant_connection("company-a") as conn:
+        conn.execute("SELECT 1")
+
+    assert any("SET LOCAL ROLE hr_app" in sql for sql in captured)
+    assert any("set_config('app.company_id'" in sql for sql in captured)
+
+
+def test_rls_policies_require_company_guc_and_force():
+    from pathlib import Path
+
+    schema = Path("app/db/schema.sql").read_text(encoding="utf-8")
+    assert "FORCE ROW LEVEL SECURITY" in schema
+    assert "current_setting('app.company_id'" in schema
+    assert schema.count("ENABLE ROW LEVEL SECURITY") >= 4
+
+
+def test_document_index_version_changes_when_a_document_is_deleted():
+    from app.services.chat_service import DOCUMENT_INDEX_VERSION_SQL
+
+    sql = " ".join(DOCUMENT_INDEX_VERSION_SQL.split())
+    assert "COUNT(*)" in sql
+    assert "string_agg(id::text" in sql
+    assert "MAX(updated_at)" in sql
+    assert "company_id = %s" in sql

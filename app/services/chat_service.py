@@ -130,18 +130,28 @@ def _recent_history(user: AuthUser, conversation_id: str, limit: int = 4) -> str
     return "\n".join(parts)
 
 
+DOCUMENT_INDEX_VERSION_SQL = """
+SELECT
+  COUNT(*)::text AS document_count,
+  COALESCE(MAX(updated_at)::text, 'none') AS latest_update,
+  COALESCE(md5(string_agg(id::text, ',' ORDER BY id)), 'none') AS document_ids
+FROM documents
+WHERE company_id = %s
+"""
+
+
+def document_index_version(company_id: str) -> str:
+    """Version that changes on insert, update, and delete of any company document."""
+    with db.tenant_connection(company_id) as conn:
+        row = conn.execute(DOCUMENT_INDEX_VERSION_SQL, (company_id,)).fetchone()
+    if not row:
+        return "none"
+    return f"{row['document_count']}:{row['latest_update']}:{row['document_ids']}"
+
+
 def _cache_key_for(user: AuthUser, message: str, history: str) -> str | None:
     try:
-        with db.tenant_connection(user.company_id) as conn:
-            row = conn.execute(
-                """
-                SELECT COALESCE(MAX(updated_at)::text, 'none') AS version
-                FROM documents
-                WHERE company_id = %s
-                """,
-                (user.company_id,),
-            ).fetchone()
-        version = str(row["version"]) if row else "none"
+        version = document_index_version(user.company_id)
     except Exception:
         return None
     return query_cache.make_key(user.company_id, user.role, message, history, version)

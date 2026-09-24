@@ -1,17 +1,12 @@
 from __future__ import annotations
 
 from app.rag import llm
+from app.rag.prompt_safety import sanitize_untrusted_text
 from app.schemas import Source
 
-
-def _sanitize_excerpt(text: str) -> str:
-    return (
-        (text or "")
-        .replace("</retrieved_documents>", "")
-        .replace("<retrieved_documents>", "")
-        .replace("</doc>", "")
-        .replace("<doc", "&lt;doc")
-    )
+ABSTAIN_MESSAGE = (
+    "I couldn't find enough information in the company's documents to answer this confidently."
+)
 
 
 def _trim_overlap(previous: str, current: str) -> str:
@@ -33,10 +28,10 @@ def build_context(chunks: list[dict]) -> str:
         page = f", page {chunk['page']}" if chunk.get("page") else ""
         source = str(chunk.get("document") or "unknown").replace('"', "'")
         raw = str(chunk.get("content") or "")
-        content = _sanitize_excerpt(raw)
+        content = sanitize_untrusted_text(raw)
         same_document = i > 1 and chunk.get("document") == chunks[i - 2].get("document")
         if same_document:
-            content = _trim_overlap(_sanitize_excerpt(previous_content), content)
+            content = _trim_overlap(sanitize_untrusted_text(previous_content), content)
         previous_content = raw
         if not content:
             continue
@@ -57,22 +52,22 @@ def generate_answer(
     chunks: list[dict],
     history: str = "",
 ) -> tuple[str, list[Source], str]:
+    if not chunks:
+        return ABSTAIN_MESSAGE, [], "none"
     context = build_context(chunks)
     answer, used = llm.complete_grounded(question, context, history)
     confidence = confidence_from(chunks, used)
-    if not chunks:
-        return answer, [], confidence
     return answer, sources_from_chunks(chunks, used), confidence
 
 
 def sources_from_chunks(chunks: list[dict], used_excerpts: list[int] | None = None) -> list[Source]:
-    selected = chunks
-    if used_excerpts:
-        selected = [
-            chunk
-            for index, chunk in enumerate(chunks, start=1)
-            if index in used_excerpts
-        ] or chunks
+    if not used_excerpts:
+        return []
+    selected = [
+        chunk
+        for index, chunk in enumerate(chunks, start=1)
+        if index in used_excerpts
+    ]
     seen: set[tuple[str, int | None]] = set()
     sources: list[Source] = []
     for chunk in selected:

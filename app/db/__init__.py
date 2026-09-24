@@ -101,6 +101,8 @@ def _apply_migrations(conn: psycopg.Connection) -> None:
         """
     )
     _apply_rls(conn)
+    _ensure_app_role(conn)
+    _warn_if_rls_bypassed(conn)
 
 
 _RLS_TABLES = ("documents", "document_chunks", "conversations", "messages")
@@ -191,6 +193,61 @@ class _ScopedConnection:
         return getattr(self._conn, name)
 
 
+APP_ROLE = "hr_app"
+
+
+def _ensure_app_role(conn: psycopg.Connection) -> None:
+    """Non-owner role without BYPASSRLS so FORCE RLS can bind retrieval queries."""
+    try:
+        conn.execute(
+            f"""
+            DO $$
+            BEGIN
+              IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{APP_ROLE}') THEN
+                CREATE ROLE {APP_ROLE} NOLOGIN NOSUPERUSER NOBYPASSRLS;
+              END IF;
+            END
+            $$
+            """
+        )
+        conn.execute(f"GRANT USAGE ON SCHEMA public TO {APP_ROLE}")
+        conn.execute(
+            f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {APP_ROLE}"
+        )
+        conn.execute(f"GRANT {APP_ROLE} TO CURRENT_USER")
+    except Exception:
+        logger.warning(
+            "Could not create role %s; tenant isolation relies on SQL company_id filters",
+            APP_ROLE,
+        )
+
+
+def _warn_if_rls_bypassed(conn: psycopg.Connection) -> None:
+    row = conn.execute(
+        """
+        SELECT r.rolname, r.rolsuper, r.rolbypassrls
+        FROM pg_roles r
+        WHERE r.rolname = current_user
+        """
+    ).fetchone()
+    if not row:
+        return
+    if row.get("rolsuper") or row.get("rolbypassrls"):
+        logger.warning(
+            "Database role %s bypasses RLS; tenant isolation relies on SQL company_id filters and SET ROLE %s",
+            row.get("rolname"),
+            APP_ROLE,
+        )
+
+
+def _apply_tenant_scope(conn, company_id: str) -> None:
+    _set_company_id(conn, company_id)
+    try:
+        conn.execute(f"SET LOCAL ROLE {APP_ROLE}")
+    except Exception:
+        pass
+
+
 def _set_company_id(conn, company_id: str) -> None:
     conn.execute("SELECT set_config('app.company_id', %s, true)", (str(company_id),))
 
@@ -218,7 +275,7 @@ def connection() -> Iterator:
 def tenant_connection(company_id: str) -> Iterator:
     """Request-scoped connection with transaction-local tenant GUC for RLS."""
     with connection() as conn:
-        yield _ScopedConnection(conn, lambda c: _set_company_id(c, company_id))
+        yield _ScopedConnection(conn, lambda c: _apply_tenant_scope(c, company_id))
 
 
 @contextmanager
