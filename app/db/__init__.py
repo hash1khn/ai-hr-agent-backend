@@ -9,11 +9,11 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool, PoolTimeout
 
-from app.config import get_settings
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-SCHEMA_PATH = Path(__file__).resolve().parent.parent / "db" / "init.sql"
+SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
 _pool: ConnectionPool | None = None
 
@@ -210,7 +210,7 @@ def connection() -> Iterator:
             token in message.lower()
             for token in ("connection refused", "enotfound", "connection", "timeout", "ssl")
         ):
-            raise RuntimeError(f"Postgres unavailable. {_db_hint()} — {message}") from exc
+            raise RuntimeError(f"Postgres unavailable. {_db_hint()} - {message}") from exc
         raise
 
 

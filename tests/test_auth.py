@@ -6,8 +6,8 @@ import jwt
 import pytest
 from fastapi import HTTPException
 
-from app.config import get_settings
-from app.security import AuthUser, create_access_token, decode_access_token, hash_password, verify_password
+from app.core.config import get_settings
+from app.core.security import AuthUser, create_access_token, decode_access_token, hash_password, verify_password
 
 
 def test_password_hash_roundtrip():
@@ -52,7 +52,7 @@ def test_expired_jwt_is_rejected(monkeypatch):
 
 
 def test_production_rejects_placeholder_jwt_secret():
-    from app.config import Settings
+    from app.core.config import Settings
 
     settings = Settings(
         environment="production",
@@ -64,7 +64,7 @@ def test_production_rejects_placeholder_jwt_secret():
 
 
 def test_production_rejects_insecure_cookie():
-    from app.config import Settings
+    from app.core.config import Settings
 
     settings = Settings(
         environment="production",
@@ -76,7 +76,7 @@ def test_production_rejects_insecure_cookie():
 
 
 def test_development_allows_placeholder_secret():
-    from app.config import Settings
+    from app.core.config import Settings
 
     Settings(
         environment="development",

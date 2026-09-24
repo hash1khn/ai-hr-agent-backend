@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import Depends, HTTPException, Request
 
-from app.security import AuthUser, decode_access_token, extract_token
+from app.core.security import AuthUser, decode_access_token, extract_token
 from app.services import auth_service
 
 

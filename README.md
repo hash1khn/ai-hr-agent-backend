@@ -20,7 +20,7 @@ flowchart TD
   rag --> llm
 ```
 
-- **API** (`app/`): authentication, document ingestion, chat, tenant-scoped retrieval. HTTP controllers stay thin.
+- **API** (`app/api/`): authentication, document ingestion, chat, tenant-scoped retrieval. HTTP controllers stay thin.
 - **RAG** (`app/rag/`, `app/services/`): extract → clean → chunk → embed → pgvector. Questions retrieve the top company-scoped chunks and send only that context to the chat model. Kept separate from HTTP so future tools/integrations can be added without rewriting retrieval.
 - **Postgres + pgvector**: stores companies, users, documents, chunks, conversations, and embeddings.
 
@@ -161,12 +161,12 @@ Never expose `OPENROUTER_API_KEY` to a browser.
 
 ```
 app/
-  routers/       HTTP controllers (thin)
+  api/           HTTP layer. v1/ holds route modules; router.py mounts them
+  core/          Settings, passwords, JWT, rate limits
+  db/            Postgres pool, tenant connections, schema.sql
+  schemas/       Request and response models, one module per feature
   services/      Business logic (auth, documents, chat)
   rag/           Chunking, extraction, embeddings, retrieval, prompting
-  security.py    Password hashing, JWT
-  config.py      Settings
-db/init.sql      Postgres + pgvector schema
 fixtures/        Fictional Acme HR policies (demo seed data)
 tests/           Auth, isolation, ingestion, RAG, rate limiting
 ```

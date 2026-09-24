@@ -5,8 +5,8 @@ from time import time
 
 from fastapi import HTTPException, Request
 
-from app.config import get_settings
-from app.security import extract_token
+from app.core.config import get_settings
+from app.core.security import extract_token
 
 
 _hits: dict[str, deque[float]] = defaultdict(deque)

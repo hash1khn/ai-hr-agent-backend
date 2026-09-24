@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, Request
 
-from app.deps import get_current_user
-from app.rate_limit import enforce_chat_rate_limit
+from app.api.deps import get_current_user
+from app.core.rate_limit import enforce_chat_rate_limit
 from app.schemas import ChatBody, ChatResponse, ConversationDetail, ConversationSummary
-from app.security import AuthUser
+from app.core.security import AuthUser
 from app.services import chat_service
 
 router = APIRouter(tags=["chat"])

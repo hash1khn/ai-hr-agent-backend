@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import HTTPException
 
 from app import db
-from app.config import get_settings
+from app.core.config import get_settings
 from app.rag import llm
 
 RETRIEVE_SQL = """

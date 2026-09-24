@@ -8,7 +8,7 @@ from pathlib import Path
 from fastapi import HTTPException, UploadFile
 
 from app import db
-from app.config import get_settings
+from app.core.config import get_settings
 from app.rag.chunker import chunk_pages
 from app.rag.extract import extract_pages, mime_for_filename, validate_upload_bytes
 from app.rag.llm import embed

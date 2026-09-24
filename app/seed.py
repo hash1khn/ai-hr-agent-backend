@@ -4,8 +4,8 @@ import logging
 from pathlib import Path
 
 from app import db
-from app.config import get_settings
-from app.security import hash_password
+from app.core.config import get_settings
+from app.core.security import hash_password
 from app.services import document_service
 
 logger = logging.getLogger(__name__)

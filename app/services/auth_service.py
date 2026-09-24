@@ -9,7 +9,7 @@ from fastapi import HTTPException
 
 from app import db
 from app.schemas import CompanyOut, EmployeeOut, UserOut
-from app.security import AuthUser, hash_password, verify_password
+from app.core.security import AuthUser, hash_password, verify_password
 
 logger = logging.getLogger(__name__)
 

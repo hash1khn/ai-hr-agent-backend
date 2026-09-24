@@ -10,7 +10,7 @@ from app.rag import query_cache
 from app.rag.answer import generate_answer
 from app.rag.retrieve import retrieve_chunks
 from app.schemas import ChatResponse, ConversationDetail, ConversationSummary, MessageOut, Source
-from app.security import AuthUser
+from app.core.security import AuthUser
 
 
 def list_conversations(user: AuthUser) -> list[ConversationSummary]:

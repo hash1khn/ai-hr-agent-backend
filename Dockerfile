@@ -6,7 +6,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
-COPY db ./db
 COPY fixtures ./fixtures
 
 RUN mkdir -p /app/uploads

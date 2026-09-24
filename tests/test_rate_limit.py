@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 
-from app.rate_limit import _hits, enforce_auth_rate_limit, enforce_chat_rate_limit
+from app.core.rate_limit import _hits, enforce_auth_rate_limit, enforce_chat_rate_limit
 
 
 class FakeRequest:
@@ -12,7 +12,7 @@ class FakeRequest:
 
 def test_chat_rate_limit(monkeypatch):
     monkeypatch.setattr(
-        "app.rate_limit.get_settings",
+        "app.core.rate_limit.get_settings",
         lambda: type(
             "S",
             (),
@@ -38,7 +38,7 @@ def test_chat_rate_limit(monkeypatch):
 
 def test_auth_rate_limit(monkeypatch):
     monkeypatch.setattr(
-        "app.rate_limit.get_settings",
+        "app.core.rate_limit.get_settings",
         lambda: type(
             "S",
             (),
@@ -63,7 +63,7 @@ def test_auth_rate_limit(monkeypatch):
 
 
 def test_rate_limiter_evicts_stale_keys(monkeypatch):
-    from app import rate_limit
+    from app.core import rate_limit
 
     _hits.clear()
     _hits["old"] = rate_limit.deque([0.0])

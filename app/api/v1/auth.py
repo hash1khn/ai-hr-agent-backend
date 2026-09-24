@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, Request, Response
 
-from app.deps import get_current_user, require_admin
-from app.rate_limit import enforce_auth_rate_limit
+from app.api.deps import get_current_user, require_admin
+from app.core.rate_limit import enforce_auth_rate_limit
 from app.schemas import CreateEmployeeBody, EmployeeOut, LoginBody, RegisterBody, UserOut
-from app.security import AuthUser, clear_session_cookie, create_access_token, set_session_cookie
+from app.core.security import AuthUser, clear_session_cookie, create_access_token, set_session_cookie
 from app.services import auth_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])

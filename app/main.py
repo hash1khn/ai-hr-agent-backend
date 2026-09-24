@@ -8,8 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app import db, seed
-from app.config import get_settings
-from app.routers import auth, chat, documents
+from app.api.router import api_router
+from app.core.config import get_settings
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -39,10 +39,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router)
-app.include_router(auth.users_router)
-app.include_router(documents.router)
-app.include_router(chat.router)
+app.include_router(api_router)
 
 
 @app.exception_handler(RuntimeError)

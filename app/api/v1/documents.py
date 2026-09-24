@@ -1,8 +1,8 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, UploadFile
 
-from app.deps import require_admin
+from app.api.deps import require_admin
 from app.schemas import DocumentOut, DocumentVisibility
-from app.security import AuthUser
+from app.core.security import AuthUser
 from app.services import document_service
 
 router = APIRouter(prefix="/documents", tags=["documents"])

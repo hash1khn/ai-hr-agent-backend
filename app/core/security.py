@@ -8,7 +8,7 @@ import bcrypt
 import jwt
 from fastapi import HTTPException, Request, Response
 
-from app.config import get_settings
+from app.core.config import get_settings
 
 
 @dataclass(frozen=True)

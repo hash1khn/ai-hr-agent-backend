@@ -5,7 +5,7 @@ import re
 import time
 from dataclasses import dataclass
 
-from app.config import get_settings
+from app.core.config import get_settings
 
 _CACHE: dict[str, "_Entry"] = {}
 _TTL_SECONDS = 15 * 60

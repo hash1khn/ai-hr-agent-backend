@@ -8,7 +8,7 @@ from typing import Any, NoReturn
 from fastapi import HTTPException
 from openai import APIStatusError, APITimeoutError, OpenAI
 
-from app.config import get_settings
+from app.core.config import get_settings
 from app.rag.language import language_instruction
 
 logger = logging.getLogger(__name__)
